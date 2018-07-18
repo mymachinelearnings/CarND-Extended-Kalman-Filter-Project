@@ -67,11 +67,14 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
+    	ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], measurement_pack.raw_measurements_[2], measurement_pack.raw_measurements_[3];
+    	previous_timestamp_ = measurement_pack.timestamp_;
     }
     else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
-      /**
-      Initialize state.
-      */
+    	//Get x, y positions from first measurement, set velocity co-ordinates to 0's since LIDAR cannot track velocity
+    	ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;
+    	previous_timestamp_ = measurement_pack.timestamp_;
+
     }
 
     // done initializing, no need to predict or update
@@ -90,6 +93,31 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
      * Update the process noise covariance matrix.
      * Use noise_ax = 9 and noise_ay = 9 for your Q matrix.
    */
+ 	long long current_timestamp_ = measurement_pack.timestamp_;
+ 	float dt = (current_timestamp_ - previous_timestamp_) / 1000000.0;
+ 	previous_timestamp_ = current_timestamp_;
+
+ 	/**
+ 		Set Predict Matrices - State transition function F & Process covariance Q
+ 		These will be same irrespective of LIDAR or RADAR
+ 	*/
+ 	ekf_.F_ = MatrixXd(4, 4);
+ 	ekf_.F_ << 1, 0, dt, 0,
+ 			   0, 1, 0, dt,
+ 			   0, 0, 1, 0,
+ 			   0, 0, 0, 1;
+
+ 	float dt2 = dt * dt;
+	float dt3 = dt2 * dt;
+	float dt4 = dt3 * dt;
+	float noise_ax = 9;
+	float noise_ay = 9;
+
+	ekf_.Q_ = MatrixXd(4, 4);
+	ekf_.Q_ << dt4/4*noise_ax, 0, dt3/2*noise_ax, 0,
+	         0, dt4/4*noise_ay, 0, dt3/2*noise_ay,
+	         dt3/2*noise_ax, 0, dt2*noise_ax, 0,
+	         0, dt3/2*noise_ay, 0, dt2*noise_ay;
 
   ekf_.Predict();
 
