@@ -2,6 +2,7 @@
 #include "tools.h"
 #include "Eigen/Dense"
 #include <iostream>
+#include <math.h>
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -31,11 +32,12 @@ FusionEKF::FusionEKF() {
         0, 0.0009, 0,
         0, 0, 0.09;
 
-  /**
-  TODO:
-    * Finish initializing the FusionEKF.
-    * Set the process and measurement noises
-  */
+  H_laser_ << 1, 0, 0, 0,
+  			  0, 1, 0, 0;
+
+  //Hj_ or H for Radar will be calculated later
+
+  // TODO Initialize P
 
 
 }
@@ -67,15 +69,24 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
-    	ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], measurement_pack.raw_measurements_[2], measurement_pack.raw_measurements_[3];
-    	previous_timestamp_ = measurement_pack.timestamp_;
+  		float ro = measurement_pack.raw_measurements_[0];
+  		float theta = measurement_pack.raw_measurements_[1];
+  		float ro_dot = measurement_pack.raw_measurements_[2];
+
+    	float px_r = ro * cos(theta);
+    	float py_r = ro * sin(theta);
+    	float vx_r = ro_dot * cos(theta);
+    	float vy_r = ro_dot * sin(theta);
+
+    	ekf_.x_ << px_r, py_r, vx_r, vy_r;
     }
     else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
     	//Get x, y positions from first measurement, set velocity co-ordinates to 0's since LIDAR cannot track velocity
     	ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;
-    	previous_timestamp_ = measurement_pack.timestamp_;
 
     }
+
+   	previous_timestamp_ = measurement_pack.timestamp_;
 
     // done initializing, no need to predict or update
     is_initialized_ = true;
@@ -132,9 +143,14 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    */
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
-    // Radar updates
+    
+  	ekf_.H_ = tools.CalculateJacobian(ekf_.x_);
+    ekf_.R_ = R_radar_;
+
   } else {
-    // Laser updates
+  	ekf_.H_ = H_laser_;
+  	ekf_.R_ = R_laser_;
+  	ekf_.Update(measurement_pack.raw_measurements_);
   }
 
   // print the output
