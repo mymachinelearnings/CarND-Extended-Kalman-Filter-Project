@@ -50,7 +50,11 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
 	float vy = x_state(3);
 
 	//check division by zero
+<<<<<<< HEAD
+	if(px == 0 & py == 0) {
+=======
 	if((px == 0) & (py == 0)) {
+>>>>>>> 850c7355bee07ed08489a4ee97e5633d20ed8a91
 	    cout << "CalcuateJacobian() - Error division by zero" << endl;
 	} else {
 	    //Calculating repeated elements
