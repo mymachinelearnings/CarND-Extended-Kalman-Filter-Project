@@ -40,18 +40,19 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
       Note that this is not same as H which is the measurement function
       H in EKF will be replaced by Jacobian, Hj
   */
-    float px = x_[0];
-    float py = x_[1];
-    float vy = x_[2];
-    float vy = x_[3];
+    float px_r = x_[0];
+    float py_r = x_[1];
+    float vy_r = x_[2];
+    float vy_r = x_[3];
 
-    rec1 = sqrt(px*px + py*py);
-    rec2 = atan2(py/px);
-    rec3 = (px*vy + py*vx) / rec1;
+    float rec1 = sqrt(px_r*px_r + py_r*py_r);
+    float rec2 = atan2(py_r, px_r);
+    float rec3 = (px_r*vy_r + py_r*vx_r) / rec1;
 
 
 
-    VectorXd z_pred << rec1, rec2, rec3;
+    VectorXd z_pred = VectorXd(3);
+    z_pred << rec1, rec2, rec3;
     VectorXd y = z - z_pred;
 
     while(y(1) > M_PI || y(1) < -M_PI) {
