@@ -21,7 +21,9 @@ FusionEKF::FusionEKF() {
   R_laser_ = MatrixXd(2, 2);
   R_radar_ = MatrixXd(3, 3);
   H_laser_ = MatrixXd(2, 4);
-  Hj_ = MatrixXd(3, 4);
+  ekf_.P_  = MatrixXd(4, 4);
+  Hj_      = MatrixXd(3, 4);
+  ekf_.F_  = MatrixXd(4, 4);
 
   //measurement covariance matrix - laser
   R_laser_ << 0.0225, 0,
@@ -35,10 +37,17 @@ FusionEKF::FusionEKF() {
   H_laser_ << 1, 0, 0, 0,
   			  0, 1, 0, 0;
 
-  //Hj_ or H for Radar will be calculated later
+  ekf_.P_ << 1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1000, 0,
+        0, 0, 0, 1000;
 
-  // TODO Initialize P
+  ekf_.F_ << 1, 0, 1, 0,
+        0, 1, 0, 1,
+ 		0, 0, 1, 0,
+ 		0, 0, 0, 1;
 
+  //H_radar is jacobian, will be calculated later below
 
 }
 
@@ -69,8 +78,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
-  		float ro = measurement_pack.raw_measurements_[0];
-  		float theta = measurement_pack.raw_measurements_[1];
+  		float ro     = measurement_pack.raw_measurements_[0];
+  		float theta  = measurement_pack.raw_measurements_[1];
   		float ro_dot = measurement_pack.raw_measurements_[2];
 
     	float px_r = ro * cos(theta);
@@ -112,12 +121,11 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
  		Set Predict Matrices - State transition function F & Process covariance Q
  		These will be same irrespective of LIDAR or RADAR
  	*/
- 	ekf_.F_ = MatrixXd(4, 4);
- 	ekf_.F_ << 1, 0, dt, 0,
- 			   0, 1, 0, dt,
- 			   0, 0, 1, 0,
- 			   0, 0, 0, 1;
+ 	
 
+ 	ekf_.F_(0, 2) = dt;
+ 	ekf_.F_(1, 3) = dt;
+ 	
  	float dt2 = dt * dt;
 	float dt3 = dt2 * dt;
 	float dt4 = dt3 * dt;
@@ -146,6 +154,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
     
   	ekf_.H_ = tools.CalculateJacobian(ekf_.x_);
     ekf_.R_ = R_radar_;
+    ekf_.UpdateEKF(measurement_pack.raw_measurements_);
 
   } else {
   	ekf_.H_ = H_laser_;

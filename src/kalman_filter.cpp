@@ -29,6 +29,45 @@ void KalmanFilter::Predict() {
 void KalmanFilter::Update(const VectorXd &z) {
   VectorXd z_pred = H_ * x_;
   VectorXd y = z - z_pred;
+  KF_basic(y);
+
+  
+}
+
+void KalmanFilter::UpdateEKF(const VectorXd &z) {
+  /**
+      In EKF, y = z - Hx will be replaced by y = z - h(x)
+      Note that this is not same as H which is the measurement function
+      H in EKF will be replaced by Jacobian, Hj
+  */
+    float px = x_[0];
+    float py = x_[1];
+    float vy = x_[2];
+    float vy = x_[3];
+
+    rec1 = sqrt(px*px + py*py);
+    rec2 = atan2(py/px);
+    rec3 = (px*vy + py*vx) / rec1;
+
+
+
+    VectorXd z_pred << rec1, rec2, rec3;
+    VectorXd y = z - z_pred;
+
+    while(y(1) > M_PI || y(1) < -M_PI) {
+      if(y(1) > M_PI) {
+        y(1) -= M_PI;
+      }
+      if(rec2 < -M_PI) {
+        y(1) += M_PI;
+      }
+    }
+
+
+    KF_basic(y);
+}
+
+void KalmanFilter::KF_basic(const VectorXd &y) {
   MatrixXd Ht = H_.transpose();
   MatrixXd S = H_ * P_ * Ht + R_;
   MatrixXd Si = S.inverse();
@@ -40,11 +79,4 @@ void KalmanFilter::Update(const VectorXd &z) {
   long x_size = x_.size();
   MatrixXd I = MatrixXd::Identity(x_size, x_size);
   P_ = (I - K * H_) * P_;
-}
-
-void KalmanFilter::UpdateEKF(const VectorXd &z) {
-  /**
-  TODO:
-    * update the state by using Extended Kalman Filter equations
-  */
 }
